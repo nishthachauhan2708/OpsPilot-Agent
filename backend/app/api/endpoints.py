@@ -206,6 +206,16 @@ def approve_action(action_id: int, db: Session = Depends(get_db)):
     if action.status != "pending":
         raise HTTPException(status_code=400, detail=f"Action #{action_id} is already in '{action.status}' state.")
 
+    # Sync postgres sequence if running on PostgreSQL to prevent primary key collision
+    if db.bind and db.bind.dialect.name == "postgresql":
+        from sqlalchemy import text
+        for tbl in ["returns", "agent_logs", "action_requests"]:
+            try:
+                db.execute(text(f"SELECT setval(pg_get_serial_sequence('{tbl}', 'id'), COALESCE((SELECT MAX(id) FROM {tbl}), 1));"))
+            except Exception:
+                pass
+        db.commit()
+
     # Execute action based on action_type
     if action.action_type == "create_return_request":
         payload = action.payload or {}
@@ -229,16 +239,19 @@ def approve_action(action_id: int, db: Session = Depends(get_db)):
         db.refresh(action)
 
         # Record Agent Log
-        log_entry = AgentLog(
-            conversation_id="human-approval-system",
-            tool_name="approve_action_executed",
-            input_summary=f"Action ID: {action_id}",
-            output_summary=f"Mutated DB: Created Return #{new_return.id} for Order #{order_id}",
-            status="success",
-            timestamp=datetime.datetime.utcnow()
-        )
-        db.add(log_entry)
-        db.commit()
+        try:
+            log_entry = AgentLog(
+                conversation_id="human-approval-system",
+                tool_name="approve_action_executed",
+                input_summary=f"Action ID: {action_id}",
+                output_summary=f"Mutated DB: Created Return #{new_return.id} for Order #{order_id}",
+                status="success",
+                timestamp=datetime.datetime.utcnow()
+            )
+            db.add(log_entry)
+            db.commit()
+        except Exception:
+            pass
 
         return action
     else:

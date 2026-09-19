@@ -9,21 +9,26 @@ from app.database.models import Customer, Order, Product, Inventory, Return, Cus
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    # Startup: Ensure database tables exist and seed data if empty
+    # Startup: Ensure database tables exist and seed data if missing
     Base.metadata.create_all(bind=engine)
     db = SessionLocal()
     try:
         customer_count = db.query(Customer).count()
         order_count = db.query(Order).count()
-        if customer_count == 0 and order_count == 0:
-            print("Database empty. Seeding initial OpsPilot dataset...")
+        if customer_count == 0 or order_count == 0 or order_count < 40:
+            print("Database empty or incomplete orders. Seeding UrbanCart dataset...")
             seed_database(db)
-            print("Database seeded successfully!")
+            customer_count = db.query(Customer).count()
+            order_count = db.query(Order).count()
+            print(f"Database seeded successfully! ({customer_count} customers, {order_count} orders)")
         else:
-            print(f"Database active: {customer_count} customers, {order_count} orders found.")
+            print(f"Database ready: {customer_count} customers, {order_count} orders found.")
     except Exception as e:
-        print(f"Startup DB error: {e}")
-        raise e
+        print(f"Startup DB notice: {e}")
+        try:
+            seed_database(db)
+        except Exception as seed_err:
+            print(f"Seed error: {seed_err}")
     finally:
         db.close()
     yield

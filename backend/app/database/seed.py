@@ -28,11 +28,11 @@ def seed_database(db: Session):
     ]
 
     for p in products_data:
-        db.add(Product(**p))
+        if not db.query(Product).filter(Product.id == p["id"]).first():
+            db.add(Product(**p))
     db.commit()
 
     # 2. Seed Inventory (15 records - matching products)
-    # Low stock items: stock < reorder_level
     inventory_data = [
         {"product_id": 1, "stock": 45, "reorder_level": 15},
         {"product_id": 2, "stock": 4, "reorder_level": 10},   # LOW STOCK
@@ -52,7 +52,8 @@ def seed_database(db: Session):
     ]
 
     for i in inventory_data:
-        db.add(Inventory(**i))
+        if not db.query(Inventory).filter(Inventory.product_id == i["product_id"]).first():
+            db.add(Inventory(**i))
     db.commit()
 
     # 3. Seed Customers (20 customers)
@@ -81,11 +82,11 @@ def seed_database(db: Session):
 
     now = datetime.datetime.utcnow()
     for c in customers_data:
-        db.add(Customer(id=c["id"], name=c["name"], email=c["email"], created_at=now - datetime.timedelta(days=30)))
+        if not db.query(Customer).filter(Customer.id == c["id"]).first():
+            db.add(Customer(id=c["id"], name=c["name"], email=c["email"], created_at=now - datetime.timedelta(days=30)))
     db.commit()
 
     # 4. Seed Orders (40 orders)
-    # Order 1042 must be explicit and delayed
     orders_list = []
     
     # Explicit order 1042
@@ -144,7 +145,6 @@ def seed_database(db: Session):
         })
 
     # Delivered orders (recent - eligible for return)
-    # Delivered 3-4 days ago
     recent_delivered = [
         (1010, 10, 12, 44.99, 7, 3, 3, "Delivered - Left at front door by driver"),
         (1015, 11, 13, 29.99, 8, 4, 4, "Delivered - Signed for by customer"),
@@ -165,7 +165,7 @@ def seed_database(db: Session):
             "tracking_status": track
         })
 
-    # Older Delivered orders (delivered > 15 days ago - ineligible standard return)
+    # Older Delivered orders
     older_delivered = [
         (1002, 16, 2, 89.50, 25, 20, 20),
         (1003, 17, 3, 49.99, 30, 25, 25),
@@ -206,7 +206,8 @@ def seed_database(db: Session):
         })
 
     for o in orders_list:
-        db.add(Order(**o))
+        if not db.query(Order).filter(Order.id == o["id"]).first():
+            db.add(Order(**o))
     db.commit()
 
     # 5. Seed Returns (10 returns)
@@ -224,28 +225,32 @@ def seed_database(db: Session):
     ]
 
     for r in returns_data:
-        db.add(Return(**r))
+        if not db.query(Return).filter(Return.id == r["id"]).first():
+            db.add(Return(**r))
     db.commit()
 
     # 6. Seed Sample Action Requests & Agent Logs
-    db.add(ActionRequest(
-        id=1,
-        action_type="create_return_request",
-        payload={"order_id": 1008, "reason": "Speaker battery does not charge", "customer_id": 2},
-        status="pending",
-        created_at=now - datetime.timedelta(hours=4)
-    ))
-    
-    db.add(AgentLog(
-        id=1,
-        conversation_id="conv-demo-001",
-        tool_name="get_delayed_orders",
-        input_summary="{}",
-        output_summary="Retrieved 6 delayed orders including order 1042",
-        status="success",
-        timestamp=now - datetime.timedelta(hours=2)
-    ))
-    db.commit()
+    if not db.query(ActionRequest).filter(ActionRequest.id == 1).first():
+        db.add(ActionRequest(
+            id=1,
+            action_type="create_return_request",
+            payload={"order_id": 1008, "reason": "Speaker battery does not charge", "customer_id": 2},
+            status="pending",
+            created_at=now - datetime.timedelta(hours=4)
+        ))
+        db.commit()
+
+    if not db.query(AgentLog).filter(AgentLog.id == 1).first():
+        db.add(AgentLog(
+            id=1,
+            conversation_id="conv-demo-001",
+            tool_name="get_delayed_orders",
+            input_summary="{}",
+            output_summary="Retrieved 6 delayed orders including order 1042",
+            status="success",
+            timestamp=now - datetime.timedelta(hours=2)
+        ))
+        db.commit()
 
     # 7. Seed Customer Issues (8 open issues)
     customer_issues_data = [
@@ -259,8 +264,19 @@ def seed_database(db: Session):
         {"id": 8, "customer_id": 7, "order_id": 1047, "issue_type": "processing", "description": "Order confirmed awaiting allocation", "status": "open", "created_at": now - datetime.timedelta(days=1)},
     ]
     for issue in customer_issues_data:
-        db.add(CustomerIssue(**issue))
+        if not db.query(CustomerIssue).filter(CustomerIssue.id == issue["id"]).first():
+            db.add(CustomerIssue(**issue))
     db.commit()
+
+    # Sync Postgres sequences if PostgreSQL
+    if db.bind and db.bind.dialect.name == "postgresql":
+        tables = ["customers", "products", "orders", "inventory", "returns", "action_requests", "agent_logs", "customer_issues"]
+        for table in tables:
+            try:
+                db.execute(text(f"SELECT setval(pg_get_serial_sequence('{table}', 'id'), COALESCE((SELECT MAX(id) FROM {table}), 1));"))
+            except Exception:
+                pass
+        db.commit()
 
     # Sync Postgres sequences if PostgreSQL
     if db.bind and db.bind.dialect.name == "postgresql":
