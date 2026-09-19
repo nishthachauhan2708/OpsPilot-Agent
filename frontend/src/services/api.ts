@@ -6,7 +6,8 @@ import {
   ActionRequest,
   AgentLog,
   AnalyticsSummary,
-  AgentChatResponse
+  AgentChatResponse,
+  ImportResult
 } from '../types';
 
 const API_BASE_URL = (import.meta as any).env?.VITE_API_BASE_URL || 'http://localhost:8000/api';
@@ -26,6 +27,11 @@ export const apiService = {
 
   getAnalyticsSummary: async (): Promise<AnalyticsSummary> => {
     const res = await api.get('/analytics/summary');
+    return res.data;
+  },
+
+  getAllOrders: async (): Promise<Order[]> => {
+    const res = await api.get('/orders');
     return res.data;
   },
 
@@ -76,4 +82,21 @@ export const apiService = {
     const res = await api.get('/agent/logs');
     return res.data;
   },
+
+  getTemplateUrl: (category: string) => {
+    return `${API_BASE_URL}/import/template/${category}`;
+  },
+
+  importData: async (category: string, file: File): Promise<ImportResult> => {
+    const formData = new FormData();
+    formData.append('file', file);
+    const endpointCategory = category === 'customer-issues' ? 'customer-issues' : category;
+    const res = await api.post(`/import/${endpointCategory}`, formData, {
+      headers: {
+        'Content-Type': 'multipart/form-data',
+      },
+    });
+    return res.data;
+  },
 };
+

@@ -1,11 +1,11 @@
 import datetime
 from sqlalchemy.orm import Session
+from sqlalchemy import text
 from app.database.session import SessionLocal, engine, Base
-from app.database.models import Customer, Product, Order, Inventory, Return, ActionRequest, AgentLog
+from app.database.models import Customer, Product, Order, Inventory, Return, ActionRequest, AgentLog, CustomerIssue
 
 def seed_database(db: Session):
-    # Re-create tables
-    Base.metadata.drop_all(bind=engine)
+    # Ensure tables exist
     Base.metadata.create_all(bind=engine)
 
     # 1. Seed Products (15 items)
@@ -247,7 +247,32 @@ def seed_database(db: Session):
     ))
     db.commit()
 
-    print("Database successfully seeded with 20 customers, 15 products, 15 inventory records, 40 orders, 10 returns!")
+    # 7. Seed Customer Issues (8 open issues)
+    customer_issues_data = [
+        {"id": 1, "customer_id": 1, "order_id": 1042, "issue_type": "delayed", "description": "Package delayed at sorting hub", "status": "open", "created_at": now - datetime.timedelta(days=2)},
+        {"id": 2, "customer_id": 2, "order_id": 1001, "issue_type": "delayed", "description": "Carrier vehicle malfunction delay", "status": "open", "created_at": now - datetime.timedelta(days=3)},
+        {"id": 3, "customer_id": 5, "order_id": 1005, "issue_type": "delayed", "description": "Weather disruption in transit zone", "status": "open", "created_at": now - datetime.timedelta(days=3)},
+        {"id": 4, "customer_id": 8, "order_id": 1012, "issue_type": "delayed", "description": "Address verification exception", "status": "open", "created_at": now - datetime.timedelta(days=1)},
+        {"id": 5, "customer_id": 12, "order_id": 1020, "issue_type": "delayed", "description": "Missed hub transfer connection", "status": "open", "created_at": now - datetime.timedelta(days=2)},
+        {"id": 6, "customer_id": 18, "order_id": 1035, "issue_type": "delayed", "description": "Logistics depot backlog", "status": "open", "created_at": now - datetime.timedelta(days=4)},
+        {"id": 7, "customer_id": 4, "order_id": 1044, "issue_type": "processing", "description": "Warehouse picking in progress", "status": "open", "created_at": now - datetime.timedelta(days=1)},
+        {"id": 8, "customer_id": 7, "order_id": 1047, "issue_type": "processing", "description": "Order confirmed awaiting allocation", "status": "open", "created_at": now - datetime.timedelta(days=1)},
+    ]
+    for issue in customer_issues_data:
+        db.add(CustomerIssue(**issue))
+    db.commit()
+
+    # Sync Postgres sequences if PostgreSQL
+    if db.bind and db.bind.dialect.name == "postgresql":
+        tables = ["customers", "products", "orders", "inventory", "returns", "action_requests", "agent_logs", "customer_issues"]
+        for table in tables:
+            try:
+                db.execute(text(f"SELECT setval(pg_get_serial_sequence('{table}', 'id'), COALESCE((SELECT MAX(id) FROM {table}), 1));"))
+            except Exception:
+                pass
+        db.commit()
+
+    print("Database successfully seeded with 20 customers, 15 products, 15 inventory records, 40 orders, 10 returns, 8 customer issues!")
 
 if __name__ == "__main__":
     db = SessionLocal()

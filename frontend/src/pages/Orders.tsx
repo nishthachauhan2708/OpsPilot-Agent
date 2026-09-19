@@ -11,9 +11,9 @@ export const Orders: React.FC = () => {
   const [searchTerm, setSearchTerm] = useState('');
 
   useEffect(() => {
-    const fetchDelayed = async () => {
+    const fetchOrders = async () => {
       try {
-        const data = await apiService.getDelayedOrders();
+        const data = await apiService.getAllOrders();
         setOrders(data);
       } catch (err) {
         console.error('Failed to load orders', err);
@@ -21,7 +21,7 @@ export const Orders: React.FC = () => {
         setLoading(false);
       }
     };
-    fetchDelayed();
+    fetchOrders();
   }, []);
 
   const filteredOrders = orders.filter((o) => {

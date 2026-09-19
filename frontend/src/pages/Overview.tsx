@@ -1,5 +1,6 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import { Header } from '../components/Header';
+import { CompanyDataImport } from '../components/CompanyDataImport';
 import { apiService } from '../services/api';
 import { AnalyticsSummary, AgentLog } from '../types';
 import {
@@ -10,7 +11,7 @@ import {
   ShieldAlert,
   ArrowUpRight,
   Activity,
-  CheckCircle2
+  HelpCircle
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 
@@ -19,32 +20,33 @@ export const Overview: React.FC = () => {
   const [logs, setLogs] = useState<AgentLog[]>([]);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    const fetchData = async () => {
-      try {
-        const [sumRes, logsRes] = await Promise.all([
-          apiService.getAnalyticsSummary(),
-          apiService.getAgentLogs()
-        ]);
-        setSummary(sumRes);
-        setLogs(logsRes.slice(0, 5));
-      } catch (err) {
-        console.error('Failed to load summary data', err);
-      } finally {
-        setLoading(false);
-      }
-    };
-    fetchData();
+  const fetchData = useCallback(async () => {
+    try {
+      const [sumRes, logsRes] = await Promise.all([
+        apiService.getAnalyticsSummary(),
+        apiService.getAgentLogs()
+      ]);
+      setSummary(sumRes);
+      setLogs(logsRes.slice(0, 5));
+    } catch (err) {
+      console.error('Failed to load summary data', err);
+    } finally {
+      setLoading(false);
+    }
   }, []);
+
+  useEffect(() => {
+    fetchData();
+  }, [fetchData]);
 
   return (
     <div className="flex-1 overflow-y-auto bg-[#0b0f19] text-slate-100 min-h-screen">
-      <Header title="Overview" subtitle="UrbanCart operational metrics and activity" />
+      <Header title="Overview" subtitle="UrbanCart operational metrics and company data management" />
 
       <main className="p-6 space-y-6 max-w-7xl mx-auto">
         {/* Top Operational Metrics */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-          <div className="bg-slate-900/90 border border-slate-800 rounded-xl p-5 space-y-2">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
+          <div className="bg-slate-900/90 border border-slate-800 rounded-xl p-4 space-y-1.5">
             <div className="flex items-center justify-between text-slate-400">
               <span className="text-xs font-medium text-slate-400">Total orders</span>
               <Package className="w-4 h-4 text-sky-400" />
@@ -52,10 +54,10 @@ export const Overview: React.FC = () => {
             <div className="text-2xl font-semibold text-white">
               {loading ? '...' : summary?.total_orders}
             </div>
-            <p className="text-xs text-slate-500">Tracked orders</p>
+            <p className="text-[11px] text-slate-500">Tracked orders</p>
           </div>
 
-          <div className="bg-slate-900/90 border border-amber-500/20 rounded-xl p-5 space-y-2">
+          <div className="bg-slate-900/90 border border-amber-500/20 rounded-xl p-4 space-y-1.5">
             <div className="flex items-center justify-between text-amber-300">
               <span className="text-xs font-medium text-slate-400">Delayed orders</span>
               <Clock className="w-4 h-4 text-amber-400" />
@@ -63,12 +65,12 @@ export const Overview: React.FC = () => {
             <div className="text-2xl font-semibold text-amber-300">
               {loading ? '...' : summary?.delayed_orders}
             </div>
-            <Link to="/orders" className="text-xs text-amber-400/80 hover:text-amber-300 flex items-center gap-1 font-medium">
+            <Link to="/orders" className="text-[11px] text-amber-400/80 hover:text-amber-300 flex items-center gap-1 font-medium">
               Currently delayed <ArrowUpRight className="w-3 h-3" />
             </Link>
           </div>
 
-          <div className="bg-slate-900/90 border border-slate-800 rounded-xl p-5 space-y-2">
+          <div className="bg-slate-900/90 border border-slate-800 rounded-xl p-4 space-y-1.5">
             <div className="flex items-center justify-between text-slate-400">
               <span className="text-xs font-medium text-slate-400">Pending returns</span>
               <RotateCcw className="w-4 h-4 text-sky-400" />
@@ -76,12 +78,12 @@ export const Overview: React.FC = () => {
             <div className="text-2xl font-semibold text-white">
               {loading ? '...' : summary?.pending_returns}
             </div>
-            <Link to="/returns" className="text-xs text-sky-400 hover:underline flex items-center gap-1 font-medium">
+            <Link to="/returns" className="text-[11px] text-sky-400 hover:underline flex items-center gap-1 font-medium">
               Awaiting review <ArrowUpRight className="w-3 h-3" />
             </Link>
           </div>
 
-          <div className="bg-slate-900/90 border border-rose-500/20 rounded-xl p-5 space-y-2">
+          <div className="bg-slate-900/90 border border-rose-500/20 rounded-xl p-4 space-y-1.5">
             <div className="flex items-center justify-between text-rose-400">
               <span className="text-xs font-medium text-slate-400">Low stock</span>
               <AlertTriangle className="w-4 h-4 text-rose-400" />
@@ -89,9 +91,22 @@ export const Overview: React.FC = () => {
             <div className="text-2xl font-semibold text-rose-300">
               {loading ? '...' : summary?.low_stock_products}
             </div>
-            <Link to="/inventory" className="text-xs text-rose-400/80 hover:text-rose-300 flex items-center gap-1 font-medium">
+            <Link to="/inventory" className="text-[11px] text-rose-400/80 hover:text-rose-300 flex items-center gap-1 font-medium">
               Below reorder level <ArrowUpRight className="w-3 h-3" />
             </Link>
+          </div>
+
+          <div className="bg-slate-900/90 border border-purple-500/20 rounded-xl p-4 space-y-1.5">
+            <div className="flex items-center justify-between text-purple-300">
+              <span className="text-xs font-medium text-slate-400">Open issues</span>
+              <HelpCircle className="w-4 h-4 text-purple-400" />
+            </div>
+            <div className="text-2xl font-semibold text-purple-300">
+              {loading ? '...' : summary?.open_customer_issues}
+            </div>
+            <span className="text-[11px] text-purple-400/80 font-medium">
+              Customer tickets
+            </span>
           </div>
         </div>
 
@@ -117,6 +132,9 @@ export const Overview: React.FC = () => {
             </Link>
           </div>
         )}
+
+        {/* Company Data Import Section */}
+        <CompanyDataImport onImportSuccess={fetchData} />
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           {/* Operational Alerts */}

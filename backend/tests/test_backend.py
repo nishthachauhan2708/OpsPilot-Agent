@@ -186,3 +186,28 @@ def test_prompt_injection_guardrail():
     assert response.status_code == 200
     data = response.json()
     assert "Security Alert" in data["message"]
+
+def test_import_templates():
+    for dt in ["orders", "inventory", "returns", "customers", "customer-issues"]:
+        res = client.get(f"/api/import/template/{dt}")
+        assert res.status_code == 200
+        assert "text/csv" in res.headers["content-type"]
+        assert len(res.text) > 10
+
+def test_csv_import_orders_flow():
+    # Test valid orders CSV upload
+    csv_content = (
+        "id,customer_id,product_id,amount,order_date,expected_delivery,actual_delivery,status,tracking_status\n"
+        "3001,1,1,299.99,2026-09-10T10:00:00,2026-09-15T10:00:00,,processing,Warehouse Processing\n"
+        "3002,2,3,49.99,2026-09-11T10:00:00,2026-09-16T10:00:00,,shipped,In Transit\n"
+    )
+    files = {"file": ("orders.csv", csv_content, "text/csv")}
+    res = client.post("/api/import/orders", files=files)
+    assert res.status_code == 200
+    data = res.json()
+    assert data["success"] is True
+    assert data["imported"] == 2
+
+    # Verify total orders increased from 40 to 42
+    summary_res = client.get("/api/analytics/summary")
+    assert summary_res.json()["total_orders"] == 42

@@ -79,3 +79,22 @@ export interface AgentChatResponse {
   tool_events: ToolEvent[];
   pending_action?: ActionRequest | null;
 }
+
+export interface ImportResult {
+  success: boolean;
+  imported: number;
+  updated: number;
+  skipped: number;
+  errors: string[];
+}
+
+export interface CustomerIssue {
+  id: number;
+  customer_id?: number | null;
+  order_id?: number | null;
+  issue_type: string;
+  description: string;
+  status: string;
+  created_at: string;
+}
+

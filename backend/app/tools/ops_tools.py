@@ -1,7 +1,7 @@
 import datetime
 from typing import Dict, Any, List
 from sqlalchemy.orm import Session
-from app.database.models import Customer, Order, Product, Inventory, Return, ActionRequest, AgentLog
+from app.database.models import Customer, Order, Product, Inventory, Return, ActionRequest, AgentLog, CustomerIssue
 from app.rag.retriever import policy_rag
 
 def log_agent_tool_call(db: Session, conversation_id: str, tool_name: str, input_data: Any, output_data: Any, status: str = "success"):
@@ -279,7 +279,9 @@ def get_operations_summary_tool(db: Session, conversation_id: str = "default-ses
     delayed_orders = db.query(Order).filter(Order.status == "delayed").count()
     pending_returns = db.query(Return).filter(Return.status == "pending").count()
     low_stock = db.query(Inventory).filter(Inventory.stock <= Inventory.reorder_level).count()
-    open_issues = db.query(Order).filter(Order.status.in_(["delayed", "processing"])).count()
+    open_issues = db.query(CustomerIssue).filter(CustomerIssue.status == "open").count()
+    if open_issues == 0:
+        open_issues = db.query(Order).filter(Order.status.in_(["delayed", "processing"])).count()
     pending_actions_count = db.query(ActionRequest).filter(ActionRequest.status == "pending").count()
 
     alerts = []

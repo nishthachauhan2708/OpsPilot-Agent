@@ -5,22 +5,25 @@ from app.core.config import settings
 from app.api.endpoints import router as api_router
 from app.database.session import SessionLocal, engine, Base
 from app.database.seed import seed_database
-from app.database.models import Customer
+from app.database.models import Customer, Order, Product, Inventory, Return, CustomerIssue
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    # Startup: Ensure database tables and seed data exist
+    # Startup: Ensure database tables exist and seed data if empty
     Base.metadata.create_all(bind=engine)
     db = SessionLocal()
     try:
         customer_count = db.query(Customer).count()
         order_count = db.query(Order).count()
-        if customer_count == 0 or order_count == 0:
-            print("Database empty or missing orders. Seeding initial OpsPilot dataset...")
+        if customer_count == 0 and order_count == 0:
+            print("Database empty. Seeding initial OpsPilot dataset...")
             seed_database(db)
             print("Database seeded successfully!")
+        else:
+            print(f"Database active: {customer_count} customers, {order_count} orders found.")
     except Exception as e:
-        print(f"Startup DB initialization notice: {e}")
+        print(f"Startup DB error: {e}")
+        raise e
     finally:
         db.close()
     yield

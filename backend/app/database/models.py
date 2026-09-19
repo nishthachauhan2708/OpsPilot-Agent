@@ -83,3 +83,18 @@ class AgentLog(Base):
     output_summary = Column(Text, nullable=False)
     status = Column(String(30), nullable=False, default="success")  # success, error, pending_approval
     timestamp = Column(DateTime, default=datetime.datetime.utcnow)
+
+class CustomerIssue(Base):
+    __tablename__ = "customer_issues"
+
+    id = Column(Integer, primary_key=True, index=True)
+    customer_id = Column(Integer, ForeignKey("customers.id"), nullable=True)
+    order_id = Column(Integer, ForeignKey("orders.id"), nullable=True)
+    issue_type = Column(String(50), nullable=False, default="general")
+    description = Column(Text, nullable=False)
+    status = Column(String(30), nullable=False, default="open")  # open, in_progress, resolved
+    created_at = Column(DateTime, default=datetime.datetime.utcnow)
+
+    customer = relationship("Customer", backref="customer_issues")
+    order = relationship("Order", backref="customer_issues")
+

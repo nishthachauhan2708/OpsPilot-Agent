@@ -27,8 +27,10 @@ from app.tools.ops_tools import (
     get_operations_summary_tool
 )
 from app.agents.ops_agent import ops_agent_engine
+from app.api.import_router import import_router
 
 router = APIRouter()
+router.include_router(import_router)
 
 @router.get("/health", tags=["Health"])
 def health_check():
@@ -47,6 +49,27 @@ def get_analytics_summary(db: Session = Depends(get_db)):
         open_customer_issues=res["open_customer_issues"],
         recent_alerts=res["recent_alerts"]
     )
+
+@router.get("/orders", response_model=List[OrderRead], tags=["Orders"])
+def get_all_orders(db: Session = Depends(get_db)):
+    """Retrieve all orders in the system."""
+    orders = db.query(Order).order_by(Order.order_date.desc()).all()
+    results = []
+    for o in orders:
+        results.append(OrderRead(
+            id=o.id,
+            customer_id=o.customer_id,
+            product_id=o.product_id,
+            amount=o.amount,
+            order_date=o.order_date,
+            expected_delivery=o.expected_delivery,
+            actual_delivery=o.actual_delivery,
+            status=o.status,
+            tracking_status=o.tracking_status,
+            customer_name=o.customer.name if o.customer else "Unknown",
+            product_name=o.product.name if o.product else "Unknown"
+        ))
+    return results
 
 @router.get("/orders/delayed", response_model=List[OrderRead], tags=["Orders"])
 def get_delayed_orders(db: Session = Depends(get_db)):
